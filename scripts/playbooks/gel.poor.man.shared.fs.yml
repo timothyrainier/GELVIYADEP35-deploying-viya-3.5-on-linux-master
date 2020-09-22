@@ -1,0 +1,151 @@
+---
+- hosts: all
+  become: yes
+  become_user: root
+
+  tasks:
+
+  - name: Ensures nfs-utils packages are present
+    yum:
+      name: nfs-utils
+      state: present
+    tags:
+      - packages
+
+  - name: Ensures nfs-utils-lib packages are present
+    yum:
+      name: nfs-utils-lib
+      state: present
+    #depending on the OS (centOS for example) could not be found because already integrated in nfs-utils
+    ignore_errors: true
+    tags:
+      - packages
+
+- hosts: sasviya01
+  become: yes
+  become_user: root
+
+  vars:
+    exportfolders:
+      - /shared
+      - /shared/sharedhomes
+      - /shared/backups
+      - /shared/dnfs
+      - /shared/sharedcascontroller
+  tasks:
+
+  - name: Ensure service is enabled and running
+    service:
+      name: nfs
+      enabled: yes
+      state: started
+    tags:
+      - service
+
+  - name: Ensure directory structure exists
+    file:
+      dest: "{{item}}"
+      state: directory
+      owner: sas
+      group: sas
+      mode: 0755
+    with_items:
+      - "{{ exportfolders }}"
+
+  - name: create the export
+    lineinfile:
+      dest: /etc/exports
+      line: '/shared    *(rw,sync,no_root_squash)'
+      regexp: '/shared'
+      state: present
+      backup: yes
+
+  - name: Ensure service is enabled and running
+    service:
+      name: nfs
+      enabled: yes
+      state: restarted
+    tags:
+      - service
+
+  - name: execute exportfs
+    shell: exportfs -a
+
+- hosts: all
+  become: yes
+  become_user: root
+
+  vars:
+    cascontfolders: /opt/sas/viya/config/data/cas
+
+  tasks:
+
+  - name: Ensure directory structure exists
+    file:
+      dest: "{{item}}"
+      state: directory
+      owner: sas
+      group: sas
+      mode: 0755
+    with_items:
+      - /opt/sas/
+      - /opt/sas/viya/
+      - /opt/sas/viya/config/
+      - /opt/sas/viya/config/data/
+      - "{{ cascontfolders }}"
+
+
+#  - name: manage mountpoint with lineinfile
+#    lineinfile:
+#      dest: /etc/fstab
+#      line: "sasviya01.race.sas.com:/shared/sharedcascontroller   {{ cascontfolders }}   nfs   defaults 0 0"
+#      regexp: 'sasviya01'
+#      state: absent
+#      backup: yes
+
+
+  - name: manage the mountpoint
+    mount:
+      path: "{{cascontfolders}}"
+      src: sasviya01.race.sas.com:/shared/sharedcascontroller
+      fstype: nfs
+      opts: defaults
+      state: mounted
+
+
+  - name: Ensure directory structure exists
+    file:
+      dest: "{{item}}"
+      state: directory
+      owner: root
+      group: root
+      mode: 0755
+    with_items:
+      - /sharedhome/
+      - /dnfs/
+      - /viyabackups/
+
+
+  - name: manage the mountpoint
+    mount:
+      path: "/sharedhome/"
+      src: sasviya01.race.sas.com:/shared/sharedhomes
+      fstype: nfs
+      opts: defaults
+      state: mounted
+
+  - name: manage the mountpoint
+    mount:
+      path: "/dnfs/"
+      src: sasviya01.race.sas.com:/shared/dnfs
+      fstype: nfs
+      opts: defaults
+      state: mounted
+
+  - name: manage the mountpoint
+    mount:
+      path: "/viyabackups/"
+      src: sasviya01.race.sas.com:/shared/backups
+      fstype: nfs
+      opts: defaults
+      state: mounted

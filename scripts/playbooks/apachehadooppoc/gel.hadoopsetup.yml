@@ -1,0 +1,104 @@
+---
+####################################################################
+#### gel.hadoopsetup.yml                                        ####
+####                                                            ####
+#### Script to install a Apache HAdoop cluster                  ####
+#### Author: Raphael Poumarede, GEL                             ####
+#### Date: 2016.11.29                                           ####
+#### Version: 0.01                                              ####
+####                                                            ####
+####################################################################
+#### CHANGELOG:                                                 ####
+####   2016.11.29: init                                         ####
+####################################################################
+####################################################################
+#### DISCLAIMER                                                 ####
+####################################################################
+#### This Ansible Playbook is provided as-is, without warranty  ####
+#### of any kind, either express or implied, including, but not ####
+#### limited to, the implied warranties of merchantability,     ####
+#### fitness for a particular purpose, or non-infringement.     ####
+#### SAS Institute shall not be liable whatsoever for any       ####
+#### damages arising out of the use of this documentation and   ####
+#### code, including any direct, indirect, or consequential     ####
+#### damages. SAS Institute reserves the right to alter or      ####
+#### abandon use of this documentation and code at any time.    ####
+#### In addition, SAS Institute will provide no support for the ####
+#### materials contained herein.                                ####
+####################################################################
+# ref: https://hadoop.apache.org/docs/stable/hadoop-project-dist/hadoop-common/ClusterSetup.html
+- name: Create playbook tmp folder
+  hosts: all
+  become: yes
+  become_user: root
+
+  tasks:
+    - name: create playbook tmp folder on all machines
+      file:
+        path: "{{ tmp_folder }}"
+        state: directory
+        mode: 0755
+        force: yes
+
+#- name: Install hadoop master node
+#  hosts: hadoopNN
+#  become: yes
+#  become_user: root
+#
+#  roles:
+#    - gel.hadoopcommon
+#    - gel.hadoopnn
+#
+#- name: Install hadoop data nodes
+#  hosts: hadoopDN
+#  become: yes
+#  become_user: root
+#
+#  roles:
+#    - gel.hadoopcommon
+#    - gel.hadoopdn
+#    
+    
+
+- name: Install hadoop master node
+  hosts: all
+  become: yes
+  become_user: root
+
+  roles:
+    - gel.hadoopcommon
+    
+    
+- name: Install hadoop master node
+  hosts: hadoopNN
+  become: yes
+  become_user: root
+
+  roles:
+    - gel.hadoopnn
+
+- name: Install hadoop data nodes
+  hosts: hadoopDN
+  become: yes
+  become_user: root
+
+  roles:
+    - gel.hadoopdn    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    

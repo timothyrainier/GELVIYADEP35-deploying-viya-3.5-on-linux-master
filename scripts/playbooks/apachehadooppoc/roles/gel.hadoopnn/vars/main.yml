@@ -1,0 +1,4 @@
+---
+hadoop_user: hdfs
+hadoop_group: hadoop
+hadoop_download_url: http://apache.cs.utah.edu/hadoop/common/hadoop-2.7.2/hadoop-2.7.2.tar.gz

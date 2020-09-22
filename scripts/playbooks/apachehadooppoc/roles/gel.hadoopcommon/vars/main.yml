@@ -1,0 +1,3 @@
+---
+hadoop_user: hdfs
+hadoop_group: hadoop

@@ -1,0 +1,22 @@
+---
+- hosts: all
+
+  roles:
+    - wipeclean
+    - timefix
+    - networkfix
+    - fixX11
+    # - sethostnames
+    - { role: sethostnames,
+          short_hostname_to_set: "$( cat /opt/raceutils/.id.txt  | grep race_alias | awk -F[=] ' { print $2 }'  | sed  's/^sas/int/' | sed 's/\\.race\\.sas\\.com//'  )" ,
+          long_hostname_to_set: "$( cat /opt/raceutils/.id.txt  | grep race_alias | awk -F[=] ' { print $2 }'  | sed  's/^sas/int/' )" }
+    - viptunnels
+    - keysetup
+
+- hosts: all:!sasviya01.race.sas.com
+
+  roles:
+    - { role: ansiblesetup, ansible_present: false }
+
+
+

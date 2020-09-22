@@ -1,0 +1,12 @@
+---
+# tmp folder
+tmp_folder: "/tmp/gel.apachehadooppoc"
+
+# hadoop vars
+hadoop_version: "2.7.7"
+hadoop_download_url: http://apache.cs.utah.edu/hadoop/common/hadoop-{{ hadoop_version }}/hadoop-{{ hadoop_version }}.tar.gz
+hadoop_user: hdfs
+hadoop_group: hadoop
+hadoop_rootfolder: "/usr/local"
+
+java_path: /usr/lib/jvm/java-1.8.0-openjdk

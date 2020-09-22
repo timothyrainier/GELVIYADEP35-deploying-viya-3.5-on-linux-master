@@ -1,0 +1,207 @@
+---
+# this is a bandwidth heavy task which downloads hadoop binaries to each node
+- name: Ensure Hadoop Group exists
+  group: 
+    name: "{{ hadoop_group}}"
+    state: present
+  tags:
+    - hadoopgroup
+    - hadoopprereqs
+    - hadoop
+
+- name: Ensure Hadoop User exist
+  user: 
+    name: "{{ hadoop_user }}" 
+    comment: "Hadoop" 
+    group: "{{ hadoop_group}}" 
+    shell: /bin/bash
+  tags:
+    - hadoopgroup
+    - hadoopprereqs
+    - hadoop
+
+- name: Disable iptables (for RHEL 6)
+  service:
+    name=iptables
+    enabled=no
+    state=stopped
+  ignore_errors: yes
+  tags:
+    - iptables
+    - hadoopprereqs
+    - hadoop
+  when: ansible_distribution_major_version == '6' 
+
+## on RHEL 7, we make sure that firewalld is disabled and stopped
+- name: Check if firewalld exists
+  stat: path=/usr/lib/systemd/system/firewalld.service
+  register: firewall_status
+  tags:
+    - firewall
+    - hadoopprereqs
+    - hadoop
+
+- name: Disable firewalld (on RHEL 7)
+  service:
+    name=firewalld
+    enabled=no
+    state=stopped
+  when: ansible_distribution_major_version == '7' and firewall_status.stat.exists
+  tags:
+    - firewall
+    - hadoopprereqs
+    - hadoop
+
+- name: Download hadoop
+  get_url: 
+    url: "{{ hadoop_download_url }}" 
+    dest: "/home/{{ hadoop_user }}/hadoop-{{hadoop_version}}.tar.gz"
+  tags:
+    - downloadhadoop
+    - hadoopprereqs
+    - hadoop
+
+- name: Extract hadoop archive
+  unarchive: 
+    src: "/home/{{ hadoop_user }}/hadoop-{{hadoop_version}}.tar.gz" 
+    dest: "{{ hadoop_rootfolder }}" 
+    owner: "{{ hadoop_user}}" 
+    group: "{{ hadoop_group }}"
+    creates: "{{ hadoop_rootfolder }}/hadoop"
+    copy: no
+  tags:
+    - downloadhadoop
+    - hadoopprereqs
+    - hadoop
+
+- name: Move hadoop directory in Hadoop root folder 
+  command: mv {{ hadoop_rootfolder }}/hadoop-{{hadoop_version}} {{ hadoop_rootfolder }}/hadoop 
+  args:
+    creates: "{{ hadoop_rootfolder }}/hadoop"
+    removes: "{{hadoop_rootfolder}}/hadoop-{{hadoop_version}}"
+  tags:
+    - movehadoopdir
+    - hadoopprereqs
+    - hadoop
+
+- name: Configure HADOOPHOME
+  lineinfile: 
+    dest: "/home/{{ hadoop_user }}/.bashrc"
+    regexp: "HADOOP_HOME="
+    line: "export HADOOP_HOME={{ hadoop_rootfolder }}/hadoop"
+  tags:
+    - configurehadoophome
+    - hadoopprereqs
+    - hadoop
+
+- name: Configure PATH for HADOOP
+  lineinfile: 
+    dest: "/home/{{ hadoop_user }}/.bashrc" 
+    regexp: "PATH=" 
+    line: "export PATH=$PATH:$HADOOP_HOME/bin" 
+  tags:
+    - configurehadoopath
+    - hadoopprereqs
+    - hadoop
+
+- name: configure HADOOP_SSH_OPTS
+  lineinfile: 
+    dest: /home/{{ hadoop_user }}/.bashrc 
+    regexp: "HADOOP_SSH_OPTS=" 
+    line: "export HADOOP_SSH_OPTS=\"-o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no\""    
+  tags:
+    - configurehadoopssh
+    - hadoopprereqs
+    - hadoop
+
+# prepare Hadoop dirs
+- name: Prepare Hadoop tmp dir
+  file: 
+    path: /home/{{ hadoop_user }}/tmp 
+    state: directory 
+    owner: "{{ hadoop_user}}"
+    group: "{{ hadoop_group }}" 
+    mode: 0750
+  tags:
+    - createtmpdir
+    - createhadoopdirs
+    - hadoopprereqs
+    - hadoop
+
+#todo check if required on datanodes...
+- name: Prepare Hadoop namenode dir
+  file: 
+    path: /home/{{ hadoop_user }}/hadoop-data/hdfs/namenode 
+    state: directory 
+    owner: "{{ hadoop_user}}" 
+    group: "{{ hadoop_group }}" 
+    mode: 0750
+  tags:
+    - createnndir
+    - createhadoopdirs
+    - hadoopprereqs
+    - hadoop
+
+#todo check if required on namenode...
+
+- name: Prepare Hadoop datanode dir
+  file: 
+    path: /home/{{ hadoop_user }}/hadoop-data/hdfs/datanode 
+    state: directory 
+    owner: "{{ hadoop_user}}" 
+    group: "{{ hadoop_group }}"
+    mode: 0750
+  tags:
+    - createdndir
+    - createhadoopdirs
+    - hadoopprereqs
+    - hadoop
+
+- name: Add the service scripts
+  template: 
+    src: "{{ item.src }}" 
+    dest: "{{ item.dest }}" 
+    owner: "{{ hadoop_user}}" 
+    group: "{{ hadoop_group }}"
+  with_items:
+    - {src: "core-site.xml", dest: "{{ hadoop_rootfolder }}/hadoop/etc/hadoop/core-site.xml"}
+    - {src: "hdfs-site.xml", dest: "{{ hadoop_rootfolder }}/hadoop/etc/hadoop/hdfs-site.xml"}
+    - {src: "yarn-site.xml", dest: "{{ hadoop_rootfolder }}/hadoop/etc/hadoop/yarn-site.xml"}
+    - {src: "mapred-site.xml", dest: "{{ hadoop_rootfolder }}/hadoop/etc/hadoop/mapred-site.xml"}
+  tags:
+    - prepxmlclientfiles
+    - hadoopprereqs
+    - hadoop
+
+#install an configure Java 8
+
+- name: Ensures Java 8 is present
+  yum: name="{{ item }}" state=present
+  with_items:
+      - java-1.8.0-openjdk-devel
+  tags:
+    - installjava8
+    - hadoopprereqs
+    - hadoop
+
+- name: Configure JAVA_HOME in hadoop
+  lineinfile: 
+    dest: "{{ hadoop_rootfolder }}/hadoop/etc/hadoop/hadoop-env.sh"
+    regexp: "^export JAVA_HOME"
+    backup: yes 
+    line: "export JAVA_HOME={{java_path}}"
+  tags:
+    - configurejava8
+    - hadoop
+
+- name: Configure JAVA_HOME for hadoop user
+  lineinfile: 
+    dest: /home/{{ hadoop_user }}/.bashrc 
+    regexp: "^export JAVA_HOME" 
+    #todo : update path with Java 8
+    line: "export JAVA_HOME={{java_path}}"
+  tags:
+    - configurejava8user
+    - hadoop
+
+

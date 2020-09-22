@@ -1,0 +1,10 @@
+---
+# we copy the root RSA ssh keys from the ansible controller
+- name: distribute the hdfs public key
+  authorized_key:
+    user: "{{ hadoop_user }}" 
+    key: "{{ lookup('file', '{{ tmp_folder }}/root.id_rsa.pub') }}"
+  tags:
+    - prereqs
+    - sshkeys
+    - hadoop
